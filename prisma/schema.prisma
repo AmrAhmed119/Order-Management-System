@@ -1,0 +1,87 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Carts {
+  cartId         Int           @id @default(autoincrement())
+  userId         Int           @default(autoincrement())
+  Users          Users            @relation(fields: [userId], references: [userId], onDelete: NoAction, onUpdate: NoAction, map: "userId")
+  Carts_Products Carts_Products[]
+}
+
+model Carts_Products {
+  Carts_cartId       Int   @default(autoincrement())
+  Products_productId Int   @default(autoincrement())
+  quantity           Int      @default(1)
+  Carts              Carts    @relation(fields: [Carts_cartId], references: [cartId], onDelete: NoAction, onUpdate: NoAction)
+  Products           Products @relation(fields: [Products_productId], references: [productId], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([Carts_cartId, Products_productId])
+}
+
+model Coupons {
+  code           String   @id @db.VarChar(20)
+  discountAmount Float
+  validFrom      DateTime @db.Date
+  validTo        DateTime @db.Date
+  Orders         Orders[]
+}
+
+model Orders {
+  orderId         Int            @id @default(autoincrement())
+  orderDate       DateTime          @db.Timestamptz(6)
+  status          orderstatus
+  userId          Int            @default(autoincrement())
+  couponCode      String?           @db.VarChar(20)
+  Coupons         Coupons?          @relation(fields: [couponCode], references: [code], onDelete: NoAction, onUpdate: NoAction, map: "couponCode")
+  Users           Users             @relation(fields: [userId], references: [userId], onDelete: NoAction, onUpdate: NoAction, map: "userId")
+  Orders_Products Orders_Products[]
+}
+
+model Orders_Products {
+  Orders_orderId     Int   @default(autoincrement())
+  Products_productId Int   @default(autoincrement())
+  quantity           Int      @default(1)
+  Orders             Orders   @relation(fields: [Orders_orderId], references: [orderId], onDelete: NoAction, onUpdate: NoAction)
+  Products           Products @relation(fields: [Products_productId], references: [productId], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([Orders_orderId, Products_productId])
+}
+
+model Products {
+  productId       Int            @id @default(autoincrement())
+  name            String          @db.VarChar(100)
+  description     String?
+  price           Int
+  stock           Int
+  Carts_Products  Carts_Products[] 
+  Orders_Products Orders_Products[] 
+}
+
+model Users {
+  userId   Int   @id @default(autoincrement())
+  name     String   @db.VarChar(100)
+  email    String   @unique(map: "email") @db.VarChar(255)
+  password String   @db.VarChar(255)
+  address  String
+  Carts    Carts[]
+  Orders   Orders[]
+}
+
+enum orderstatus {
+  Pending
+  Cancelled
+  Refunded
+  Completed
+}
