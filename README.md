@@ -31,7 +31,7 @@ This project is an implementation of an Order Management System (OMS) for an e-c
 - ORM: Prisma
 - Database: PostgreSQL
 - Tools: Swagger API
-- 
+
 ## Database ERD 
 <img src="https://i.ibb.co/b1fzXJ6/ERD.png" width="700" alt="Nest Logo" />
 
