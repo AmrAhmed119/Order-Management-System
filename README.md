@@ -24,12 +24,33 @@
 
 ## Description
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+This project is an implementation of an Order Management System (OMS) for an e-commerce mobile app. It provides functionalities for managing users, products, carts, and orders. The system is built using NestJS as the backend framework, Prisma as the ORM, and PostgreSQL as the database. The project includes several API endpoints for adding products to the cart, viewing the cart, updating the cart, removing items from the cart, creating orders, viewing orders, and updating order status.
+
+## Technology Stack
+- Backend Framework: NestJS
+- ORM: Prisma
+- Database: PostgreSQL
+- Tools: Swagger API
+- 
+## Database ERD 
+<img src="https://i.ibb.co/b1fzXJ6/ERD.png" width="700" alt="Nest Logo" />
+
+## Swagger API
+<img src="https://i.ibb.co/hg0cvrX/Screenshot-2024-06-23-190804.png" width="700" alt="Nest Logo" />
 
 ## Installation
 
 ```bash
 $ npm install
+```
+
+## Database setup
+```
+# create .env file
+# update the database URL
+$ DATABASE_URL="postgresql://user:password@localhost:5432/oms_database"
+$ npx prisma generate
+$ npx prisma migrate dev
 ```
 
 ## Running the app
