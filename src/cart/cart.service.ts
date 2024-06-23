@@ -15,18 +15,10 @@ export class CartService {
    * @description Get user cart by userId and if not found create one
    */
   async getUserCart(userId: number): Promise<Carts> {
-    const cart = await this.prisma.carts.findFirst({
-      where: {
-        userId,
-      },
-    });
+    const cart = await this.prisma.carts.findFirst({ where: { userId } });
 
     if (!cart) {
-      return await this.prisma.carts.create({
-        data: {
-          userId,
-        },
-      });
+      return await this.prisma.carts.create({ data: { userId } });
     }
 
     return cart;
@@ -43,52 +35,78 @@ export class CartService {
         Carts_cartId: cartId,
         Products_productId: productId,
       },
-      select: {
-        quantity: true,
-      },
+      select: { quantity: true },
     });
 
-    if (!productQuantity) {
-      return 0;
-    }
-
-    return productQuantity.quantity;
+    return productQuantity ? productQuantity.quantity : 0;
   }
 
   /**
    * @param productId
    * @returns product details
    */
-  async getProductDetails(productId: number): Promise<Products> {
+  async getProductDetails(productId: number): Promise<Products | null> {
     const product = await this.prisma.products.findUnique({
-      where: {
-        productId,
-      },
+      where: { productId },
     });
 
     return product;
   }
 
   /**
-   * @param cardId
+   * @param cartId
    * @param productId
    * @param quantity
    * @description increments the quantity of the product in a given cart
    */
-  async incrementProductQuantity(
-    cardId: number,
+  async changeProductQuantity(
+    cartId: number,
     productId: number,
-    quantity: number,
-  ) {
+    newQuantity: number,
+  ): Promise<void> {
     await this.prisma.carts_Products.update({
       where: {
         Carts_cartId_Products_productId: {
-          Carts_cartId: cardId,
+          Carts_cartId: cartId,
           Products_productId: productId,
         },
       },
+      data: { quantity: newQuantity },
+    });
+  }
+
+  /**
+   * @param productId
+   * @returns void
+   * @description decrement the stock of the product by 1
+   */
+  async changeProductStock(productId: number, newStock: number): Promise<void> {
+    await this.prisma.products.update({
+      where: { productId },
+      data: { stock: newStock },
+    });
+  }
+
+  /**
+   * @param cartId
+   * @param productId
+   * @returns void
+   * @description create a product in the cart
+   */
+  async createProduct(cartId: number, productId: number): Promise<void> {
+    await this.prisma.carts_Products.create({
       data: {
-        quantity: quantity + 1,
+        Carts: {
+          connect: {
+            cartId,
+          },
+        },
+        Products: {
+          connect: {
+            productId,
+          },
+        },
+        quantity: 1,
       },
     });
   }
@@ -121,40 +139,19 @@ export class CartService {
     }
 
     // decrement product stock
-    await this.prisma.products.update({
-      where: {
-        productId: addProductDto.productId,
-      },
-      data: {
-        stock: product.stock - 1,
-      },
-    });
+    await this.changeProductStock(addProductDto.productId, product.stock - 1);
 
     if (productQuantity > 0) {
-      this.incrementProductQuantity(
+      this.changeProductQuantity(
         userCart.cartId,
         addProductDto.productId,
-        productQuantity,
+        productQuantity + 1,
       );
       return `Product quantity updated, new quantity ${productQuantity + 1}`;
     }
 
     // if product is not in the cart, add it to the cart
-    await this.prisma.carts_Products.create({
-      data: {
-        Carts: {
-          connect: {
-            cartId: userCart.cartId,
-          },
-        },
-        Products: {
-          connect: {
-            productId: addProductDto.productId,
-          },
-        },
-        quantity: 1,
-      },
-    });
+    this.createProduct(userCart.cartId, addProductDto.productId);
 
     return `${product.name} is added to the cart`;
   }
@@ -164,13 +161,16 @@ export class CartService {
    * @returns list of product details that present in the cart
    */
   async getCartProducts(cartId: number) {
-    // get cart products and join with table products to get product details
     return await this.prisma.carts_Products.findMany({
-      where: {
-        Carts_cartId: cartId,
-      },
-      include: {
-        Products: true,
+      where: { Carts_cartId: cartId },
+      select: {
+        quantity: true,
+        Products: {
+          select: {
+            name: true,
+            price: true,
+          },
+        },
       },
     });
   }
@@ -189,10 +189,14 @@ export class CartService {
    * @returns string
    * @description update the quantity of the product in the cart
    */
-  async updateCart(updateCartDto: UpdateCartDto) {
+  async updateCart(updateCartDto: UpdateCartDto): Promise<string> {
     const userCart = await this.getUserCart(updateCartDto.userId);
     const productQuantity = await this.getProductQuantity(
       userCart.cartId,
+      updateCartDto.productId,
+    );
+
+    const product: Products = await this.getProductDetails(
       updateCartDto.productId,
     );
 
@@ -200,17 +204,20 @@ export class CartService {
       throw new ForbiddenException('Product not found in the cart!');
     }
 
-    await this.prisma.carts_Products.update({
-      where: {
-        Carts_cartId_Products_productId: {
-          Carts_cartId: userCart.cartId,
-          Products_productId: updateCartDto.productId,
-        },
-      },
-      data: {
-        quantity: updateCartDto.quantity,
-      },
-    });
+    if (updateCartDto.quantity > product.stock) {
+      throw new ForbiddenException('Product out of stock!');
+    }
+
+    await this.changeProductQuantity(
+      userCart.cartId,
+      updateCartDto.productId,
+      updateCartDto.quantity,
+    );
+
+    await this.changeProductStock(
+      product.productId,
+      product.stock + productQuantity - updateCartDto.quantity,
+    );
 
     return `Product quantity updated to ${updateCartDto.quantity}`;
   }
@@ -220,7 +227,7 @@ export class CartService {
    * @returns string
    * @description remove a product from the cart
    */
-  async removeProduct(removeProductDto: RemoveProductDto) {
+  async removeProduct(removeProductDto: RemoveProductDto): Promise<string> {
     const userCart = await this.getUserCart(removeProductDto.userId);
     const productQuantity = await this.getProductQuantity(
       userCart.cartId,
@@ -231,6 +238,7 @@ export class CartService {
       throw new ForbiddenException('Product not found in the cart!');
     }
 
+    // remove product from cart
     await this.prisma.carts_Products.delete({
       where: {
         Carts_cartId_Products_productId: {
@@ -240,6 +248,13 @@ export class CartService {
       },
     });
 
-    return 'Product removed from the cart';
+    // increase the quantity of the product in the stock
+    const product = await this.getProductDetails(removeProductDto.productId);
+    await this.changeProductStock(
+      product.productId,
+      product.stock + productQuantity,
+    );
+
+    return 'Product removed from the cart and stock quantity updated!';
   }
 }
