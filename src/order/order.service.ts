@@ -17,8 +17,12 @@ export class OrderService {
     // get the cart of the user
     const cart = await this.prisma.carts.findFirst({ where: { userId } });
 
+    if (!cart) {
+      throw new Error('Cart not found for user');
+    }
+
     // get all products in the cart
-    const products = this.prisma.carts_Products.findMany({
+    const products = await this.prisma.carts_Products.findMany({
       where: { Carts_cartId: cart.cartId },
       select: {
         quantity: true,
@@ -27,15 +31,15 @@ export class OrderService {
     });
 
     // add all products to the order
-    for (const product of await products) {
-      await this.prisma.orders_Products.create({
-        data: {
-          Orders_orderId: orderId,
-          Products_productId: product.Products_productId,
-          quantity: product.quantity,
-        },
-      });
-    }
+    const orderProductsData = products.map((product) => ({
+      Orders_orderId: orderId,
+      Products_productId: product.Products_productId,
+      quantity: product.quantity,
+    }));
+
+    await this.prisma.orders_Products.createMany({
+      data: orderProductsData,
+    });
 
     // clear user cart
     await this.prisma.carts_Products.deleteMany({
@@ -87,7 +91,6 @@ export class OrderService {
     }
 
     const products = await this.getOrderProducts(orderId);
-    console.log(products);
     return {
       orderDate: order.orderDate,
       status: order.status,
@@ -103,6 +106,10 @@ export class OrderService {
    * @description updates the status of an order
    */
   async updateOrderStatus(orderId: number, status: orderstatus) {
+    if (!Object.values(orderstatus).includes(status)) {
+      throw new ForbiddenException('Invalid status value');
+    }
+
     await this.prisma.orders.update({
       where: { orderId: orderId },
       data: { status: status },

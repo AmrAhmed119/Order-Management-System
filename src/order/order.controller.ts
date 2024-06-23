@@ -1,4 +1,12 @@
-import { Body, Controller, Get, Param, Post, Put } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  ParseIntPipe,
+  Post,
+  Put,
+} from '@nestjs/common';
 import { OrderService } from './order.service';
 import { CreateOrderDto } from './dto/createOrder.dto';
 import { UpdateStatusDto } from './dto/updateStatus.dto';
@@ -14,19 +22,16 @@ export class OrderController {
   }
 
   @Get(':orderId')
-  async getOrder(@Param('orderId') orderId: number) {
-    return this.orderService.getOrder(Number(orderId));
+  async getOrder(@Param('orderId', ParseIntPipe) orderId: number) {
+    return this.orderService.getOrder(orderId);
   }
 
   @Put(':orderId/status')
   async updateOrderStatus(
-    @Param('orderId') orderId: number,
+    @Param('orderId', ParseIntPipe) orderId: number,
     @Body() updateStatusDto: UpdateStatusDto,
   ) {
-    return this.orderService.updateOrderStatus(
-      Number(orderId),
-      updateStatusDto.status,
-    );
+    return this.orderService.updateOrderStatus(orderId, updateStatusDto.status);
   }
 
   @Post('apply-coupon')

@@ -4,6 +4,7 @@ import {
   Delete,
   Get,
   Param,
+  ParseIntPipe,
   Post,
   Put,
 } from '@nestjs/common';
@@ -22,8 +23,8 @@ export class CartController {
   }
 
   @Get(':userId')
-  async getCart(@Param('userId') userId: number) {
-    return this.cartService.getCart(Number(userId));
+  async getCart(@Param('userId', ParseIntPipe) userId: number) {
+    return this.cartService.getCart(userId);
   }
 
   @Put('update')

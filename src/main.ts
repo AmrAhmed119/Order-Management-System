@@ -8,7 +8,9 @@ async function bootstrap() {
   app.useGlobalPipes(new ValidationPipe({ whitelist: true }));
   const config = new DocumentBuilder()
     .setTitle('E-commerce API')
-    .setDescription('APIs handling orders, products, and Users')
+    .setDescription(
+      'APIs handling Orders, Products, and Users for an E-commerce platform',
+    )
     .setVersion('1.0')
     .addTag('E-commerce')
     .build();
