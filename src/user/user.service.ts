@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 
 @Injectable()
@@ -29,7 +29,7 @@ export class UserService {
 
       return orders;
     } catch (error) {
-      throw new Error('Error while fetching user order history');
+      throw new ForbiddenException('Error while fetching user order history');
     }
   }
 }
